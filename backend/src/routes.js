@@ -1,4 +1,5 @@
 const express = require('express');
+const { celebrate, Segments, Joi } = require('celebrate');
 
 /* Importação das controllers */
 const IncidentController = require('./controllers/IncidentController');
@@ -9,18 +10,56 @@ const SessionController = require('./controllers/SessionController');
 const routes = express.Router(); //colocando as rotas do express na variável routes
 
 /* ROTAS DE AUTENTICAÇÃO */
-routes.post('/sessions', SessionController.create);
+routes.post('/sessions', celebrate({
+    [Segments.BODY]: Joi.object().keys({ /* validação de body */
+        id: Joi.string().required(),
+    })
+}), SessionController.create);
 
 /* ROTAS DE ONGS */
 routes.get('/ongs', OngController.index);
-routes.post('/ongs', OngController.create); 
+
+routes.post('/ongs', celebrate( {
+    [Segments.BODY]: Joi.object().keys({ /* validação de body */
+        name: Joi.string().required(),
+        email: Joi.string().required().email(),
+        whatsapp: Joi.string().required().min(10).max(11),
+        city: Joi.string().required(),
+        uf: Joi.string().required().length(2),
+    })
+}) ,OngController.create); //a validação tem que vir primeiro 
 
 /* ROTAS DO PERFIL DA ONG */
-routes.get('/profile', ProfileController.index);
+routes.get('/profile', celebrate({
+    [Segments.HEADERS]: Joi.object({ /* validação de headers */
+        authorization: Joi.string().required(),
+    }).unknown(),
+}), ProfileController.index);
 
 /* ROTAS DE CASOS */
-routes.post('/incidents', IncidentController.create); 
-routes.get('/incidents', IncidentController.index);
-routes.delete('/incidents/:id', IncidentController.delete);
+routes.post('/incidents', celebrate({
+    [Segments.BODY]: Joi.object().keys({ 
+        title: Joi.string().required(),
+        description: Joi.string().required(),
+        value: Joi.number().required(),
+    },
+    {
+        [Segments.HEADERS]: Joi.object({ 
+            authorization: Joi.string().required(),
+        }).unknown(),
+    })
+}), IncidentController.create); 
+
+routes.get('/incidents', celebrate({
+    [Segments.QUERY]: Joi.object().keys({
+        page: Joi.number(),
+    })
+}), IncidentController.index);
+
+routes.delete('/incidents/:id', celebrate({
+    [Segments.PARAMS]: Joi.object().keys({ /* validação de parâmetros na url */
+        id: Joi.number().required(),
+    })
+}), IncidentController.delete);
 
 module.exports = routes;
